@@ -1,25 +1,11 @@
 extern crate libc;
 extern crate nix;
 
-use libc::{
-    c_int,
-    getpid,
-    setsockopt,
-};
-use nix::{Error, Errno};
-use nix::sys::socket::{
-    AddressFamily, 
-    SockAddr, 
-    SockFlag, 
-    SockType, 
-};
+use libc::{c_int, getpid, setsockopt};
+use nix::{Errno, Error};
+use nix::sys::socket::{AddressFamily, SockAddr, SockFlag, SockType};
 
-use nix::sys::socket::{
-    bind,
-    recvmsg,
-    sendmsg,
-    socket,
-};
+use nix::sys::socket::{bind, recvmsg, sendmsg, socket};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -31,19 +17,14 @@ pub enum NetlinkSockOpt {
     NoEnobufs = 5,
 }
 
-fn setsockopt_int(
-    fd: c_int,
-    level: c_int, 
-    option: c_int, 
-    val: c_int
-) -> Result<(), nix::Error> {
+fn setsockopt_int(fd: c_int, level: c_int, option: c_int, val: c_int) -> Result<(), nix::Error> {
     use std::mem;
     let res = unsafe {
         setsockopt(
-            fd, 
-            level, 
+            fd,
+            level,
             option as c_int,
-            mem::transmute(&val), 
+            mem::transmute(&val),
             mem::size_of::<c_int>() as u32,
         )
     };
@@ -61,17 +42,14 @@ fn nl_open() -> Result<i32, nix::Error> {
         SockType::Raw,
         SockFlag::empty(),
         libc::NETLINK_USERSOCK,
-    )?; 
+    )?;
 
     let pid;
     unsafe {
         pid = getpid();
     };
 
-    bind(
-        sock, 
-        &SockAddr::new_netlink(pid as u32, 0)
-    )?;
+    bind(sock, &SockAddr::new_netlink(pid as u32, 0))?;
 
     setsockopt_int(sock, 270, libc::NETLINK_ADD_MEMBERSHIP, 22)?;
 
@@ -80,7 +58,7 @@ fn nl_open() -> Result<i32, nix::Error> {
 
 fn nl_recv(sock: i32, count: u32) -> Result<(), nix::Error> {
     let mut buf = [0u8; 1024];
-    let mut cmsg : nix::sys::socket::CmsgSpace<()> = nix::sys::socket::CmsgSpace::new();
+    let mut cmsg: nix::sys::socket::CmsgSpace<()> = nix::sys::socket::CmsgSpace::new();
 
     println!("[{}]", count);
     recvmsg(
@@ -96,7 +74,7 @@ fn nl_recv(sock: i32, count: u32) -> Result<(), nix::Error> {
     };
 }
 
-fn nl_send(sock: i32, buf: [u8; 1024]) -> Result<usize, nix::Error > {
+fn nl_send(sock: i32, buf: [u8; 1024]) -> Result<usize, nix::Error> {
     return sendmsg(
         sock,
         &[nix::sys::uio::IoVec::from_slice(&buf[..])],
@@ -113,21 +91,21 @@ fn main() {
         Ok(sock) => {
             println!("sock {}", sock);
             sk = sock;
-        },
+        }
         Err(Error::Sys(Errno::EPERM)) => {
             println!("Please run as root.");
             return;
-        },
+        }
         Err(err) => {
             println!("error {}", err);
             return;
-        },
+        }
     }
 
     let mut count = 0;
     loop {
         match nl_recv(sk, count) {
-            Ok(_) => {count = count + 1}
+            Ok(_) => count = count + 1,
             Err(e) => {
                 println!("error {}", e);
                 return;
